@@ -1,0 +1,201 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: mixer
+---
+apiVersion: v1
+data:
+  mixer_hash.txt: ""
+kind: ConfigMap
+metadata:
+  name: githash-configmap-custom-7dcc2k5c4d
+  namespace: mixer
+---
+apiVersion: v1
+data:
+  mixerProject: <PROJECT_ID>
+  serviceName: <DOMAIN>
+kind: ConfigMap
+metadata:
+  name: mixer-configmap-custom
+  namespace: mixer
+---
+apiVersion: v1
+data:
+  mapping.mcf: ""
+kind: ConfigMap
+metadata:
+  name: schema-mapping-custom
+  namespace: mixer
+---
+apiVersion: v1
+data:
+  bigquery.version: ""
+  bigtable.version: ""
+  store.project: ""
+kind: ConfigMap
+metadata:
+  name: store-configmap-custom
+  namespace: mixer
+---
+apiVersion: v1
+kind: Service
+metadata:
+  annotations:
+    cloud.google.com/backend-config: '{"ports": {"8081":"backendconfig"}}'
+  name: mixer-service-custom
+  namespace: mixer
+spec:
+  ports:
+  - name: http
+    port: 80
+    protocol: TCP
+    targetPort: 8081
+  selector:
+    app: mixer-grpc
+  type: NodePort
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: mixer-grpc-custom
+  namespace: mixer
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: mixer-grpc
+  strategy:
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 25%
+    type: RollingUpdate
+  template:
+    metadata:
+      labels:
+        app: mixer-grpc
+    spec:
+      containers:
+      - args:
+        - --bigquery_only=true
+        - --mixer_project=$(MIXER_PROJECT)
+        - --store_project=$(STORE_PROJECT)
+        - --bq_dataset=$(BIG_QUERY)
+        - --base_table=$(BIG_TABLE)
+        - --schema_path=/datacommons/mapping
+        env:
+        - name: MIXER_PROJECT
+          valueFrom:
+            configMapKeyRef:
+              key: mixerProject
+              name: mixer-configmap-custom
+        - name: STORE_PROJECT
+          valueFrom:
+            configMapKeyRef:
+              key: store.project
+              name: store-configmap-custom
+        - name: BIG_QUERY
+          valueFrom:
+            configMapKeyRef:
+              key: bigquery.version
+              name: store-configmap-custom
+        - name: BIG_TABLE
+          valueFrom:
+            configMapKeyRef:
+              key: bigtable.version
+              name: store-configmap-custom
+        - name: MIXER_HASH
+          valueFrom:
+            configMapKeyRef:
+              key: mixer_hash.txt
+              name: githash-configmap-custom-7dcc2k5c4d
+        - name: BOUNCE
+          value: dummy
+        image: gcr.io/datcom-ci/datacommons-mixer:latest
+        imagePullPolicy: Always
+        livenessProbe:
+          exec:
+            command:
+            - /bin/grpc_health_probe
+            - -addr=:12345
+          initialDelaySeconds: 10
+          periodSeconds: 10
+        name: mixer
+        ports:
+        - containerPort: 12345
+        readinessProbe:
+          exec:
+            command:
+            - /bin/grpc_health_probe
+            - -addr=:12345
+          periodSeconds: 10
+        resources:
+          limits:
+            cpu: 800m
+            memory: 6G
+          requests:
+            cpu: 800m
+            memory: 6G
+        volumeMounts:
+        - mountPath: /datacommons/mapping
+          name: schema-mapping
+      - args:
+        - --service=$(SERVICE_NAME)
+        - --http_port=8081
+        - --backend=grpc://127.0.0.1:12345
+        - --cors_preset=basic
+        - --rollout_strategy=managed
+        - --healthz=healthz
+        env:
+        - name: SERVICE_NAME
+          valueFrom:
+            configMapKeyRef:
+              key: serviceName
+              name: mixer-configmap-custom
+        image: gcr.io/endpoints-release/endpoints-runtime:1
+        livenessProbe:
+          httpGet:
+            path: /healthz
+            port: 8081
+          initialDelaySeconds: 10
+          periodSeconds: 5
+        name: esp
+        ports:
+        - containerPort: 8081
+        readinessProbe:
+          httpGet:
+            path: /healthz
+            port: 8081
+          periodSeconds: 5
+        resources:
+          limits:
+            cpu: 200m
+            memory: 1G
+          requests:
+            cpu: 200m
+            memory: 1G
+      serviceAccountName: mixer-ksa
+      volumes:
+      - configMap:
+          name: schema-mapping-custom
+        name: schema-mapping
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  annotations:
+    ingress.gcp.kubernetes.io/pre-shared-cert: mixer-certificate
+    kubernetes.io/ingress.global-static-ip-name: mixer-ip
+  name: mixer-ingress-custom
+  namespace: mixer
+spec:
+  rules:
+  - http:
+      paths:
+      - backend:
+          service:
+            name: mixer-service-custom
+            port:
+              number: 80
+        path: /*
+        pathType: ImplementationSpecific
