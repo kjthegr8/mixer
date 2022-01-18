@@ -46,7 +46,7 @@ Temporary Items
 bin/
 
 # Kubernetes
-gke/config.yaml
+# gke/config.yaml
 gke/endpoints.yaml
 
 mixer-grpc.*.pb
