@@ -29,8 +29,8 @@ configMapGenerator:
     behavior: create
     namespace: mixer
     literals:
-      - mixerProject=datcom-mixer-statvar
-      - serviceName=mixer.endpoints.datcom-mixer-statvar.cloud.goog
+      - mixerProject=tidal-dc-poc
+      - serviceName=mixer.endpoints.tidal-dc-poc.cloud.goog
 
 patchesStrategicMerge:
   - |-
@@ -52,4 +52,4 @@ patchesJson6902:
       version: v1
       kind: Deployment
       name: mixer-grpc
-    path: patch.yaml
+    path: tidal.yaml
