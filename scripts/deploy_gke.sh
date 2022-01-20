@@ -33,8 +33,8 @@ set -e
 
 ENV=$1
 
-if [[ $ENV != "staging" && $ENV != "prod" && $ENV != "autopush" && $ENV != "encode" && $ENV != "dev" && $ENV != "private" ]]; then
-  echo "First argument should be 'staging' or 'prod' or 'autopush' or 'encode' or 'dev' or 'private'"
+if [[ $ENV != "staging" && $ENV != "prod" && $ENV != "autopush" && $ENV != "encode" && $ENV != "dev" && $ENV != "private" && $ENV != "tidal" ]]; then
+  echo "First argument should be 'staging' or 'prod' or 'autopush' or 'encode' or 'dev' or 'private' or 'tidal'"
   exit
 fi
 
@@ -46,7 +46,7 @@ if [[ $2 != "" ]]; then
   TAG=$2
   cd "$ROOT"
   # This is important to get the correct BT and BQ version
-  git checkout "$TAG"
+  # git checkout "$TAG"
 fi
 
 cd "$ROOT/deploy/git"

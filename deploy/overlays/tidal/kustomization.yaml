@@ -52,4 +52,4 @@ patchesJson6902:
       version: v1
       kind: Deployment
       name: mixer-grpc
-    path: tidal.yaml
+    path: patch.yaml
